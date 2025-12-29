@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Mr. Mike Burger & Hot Dogs - Interactive Prototype</title>
+
+    <!-- React & Router -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/history@5/umd/history.development.js"></script>
+    <script src="https://unpkg.com/react-router@6.3.0/umd/react-router.development.js"></script>
+    <script src="https://unpkg.com/react-router-dom@6.3.0/umd/react-router-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Rye&family=Lobster&family=Oswald:wght@400;500;700&family=Righteous&family=Montserrat:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+        rel="stylesheet" />
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#a81c22", // Consistent deep red
+                        "primary-hover": "#821216",
+                        secondary: "#f4e4d4", // Off-white/cream
+                        "background-light": "#fdfbf7",
+                        "background-dark": "#050505",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1e1e1e",
+                        "text-light": "#333333",
+                        "text-dark": "#e5e5e5",
+                        "paper-light": "#FFFFFF",
+                        "paper-dark": "#262626",
+                    },
+                    fontFamily: {
+                        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+                        display: ["'Righteous'", "'Lobster'", "cursive"],
+                        western: ["'Rye'", "serif"],
+                        body: ["'Oswald'", "'Montserrat'", "sans-serif"],
+                        script: ["'Lobster'", "cursive"],
+                    },
+                    backgroundImage: {
+                        'checkerboard': "url('data:image/svg+xml,%3Csvg width=\\'40\\' height=\\'40\\' viewBox=\\'0 0 40 40\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cg fill=\\'%23a81c22\\' fill-opacity=\\'0.1\\' fill-rule=\\'evenodd\\'%3E%3Cpath d=\\'M0 0h20v20H0V0zm20 20h20v20H20V20z\\'/%3E%3C/g%3E%3C/svg%3E')",
+                    },
+                    boxShadow: {
+                        'neon-red': '0 0 5px #ff5555, 0 0 20px #a81c22, 0 0 40px #a81c22',
+                        'neon-white': '0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ffffff',
+                    },
+                    dropShadow: {
+                        'neon-text': '0 0 5px rgba(255, 85, 85, 0.8)',
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        /* Global Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #a81c22;
+            border-radius: 4px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Checkered Borders for styling consistency across components */
+        .checkered-border-top,
+        .checkered-border-bottom {
+            background-image: linear-gradient(45deg, #a81c22 25%, transparent 25%, transparent 75%, #a81c22 75%, #a81c22), linear-gradient(45deg, #a81c22 25%, transparent 25%, transparent 75%, #a81c22 75%, #a81c22);
+            background-position: 0 0, 10px 10px;
+            background-size: 20px 20px;
+            height: 20px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body
+    class="font-body bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark transition-colors duration-300">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // 1. Framework & Router Setup
+        const { useState, useEffect } = React;
+        const { createRoot } = ReactDOM;
+        const { MemoryRouter, Routes, Route, Link, useNavigate, useLocation } = ReactRouterDOM;
+
+        // --- Context & State Management ---
+        const CartContext = React.createContext();
+
+        const CartProvider = ({ children }) => {
+            const [cart, setCart] = useState([]);
+            const [isCartOpen, setIsCartOpen] = useState(false);
+
+            // Updated addToCart to handle items with price overrides or additions
+            const addToCart = (item, option = null, priceOverride = null) => {
+                let finalPrice = item.price;
+                if (priceOverride) {
+                    finalPrice = priceOverride;
+                }
+
+                const existingItemIndex = cart.findIndex(i => i.name === item.name && i.option === option);
+
+                if (existingItemIndex > -1) {
+                    // Increment quantity if same item+option exists
+                    const newCart = [...cart];
+                    newCart[existingItemIndex].quantity += 1;
+                    setCart(newCart);
+                } else {
+                    const newItem = {
+                        ...item,
+                        option,
+                        price: finalPrice,
+                        quantity: 1,
+                        id: Date.now()
+                    };
+                    setCart([...cart, newItem]);
+                }
+            };
+
+            const removeFromCart = (itemId) => {
+                setCart(cart.filter(item => item.id !== itemId));
+            };
+
+            const updateQuantity = (itemId, change) => {
+                setCart(cart.map(item => {
+                    if (item.id === itemId) {
+                        const newQuantity = Math.max(0, item.quantity + change);
+                        return { ...item, quantity: newQuantity };
+                    }
+                    return item;
+                }).filter(item => item.quantity > 0));
+            };
+
+            const cartTotal = cart.reduce((total, item) => {
+                const price = typeof item.price === 'string' ? parseFloat(item.price.replace('$', '')) : item.price;
+                return total + (price * item.quantity);
+            }, 0);
+
+            const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+            return (
+                <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, cartTotal, cartCount, isCartOpen, setIsCartOpen }}>
+                    {children}
+                </CartContext.Provider>
+            );
+        };
+
+        // --- Shared Components ---
+
+        // Option Selection Modal
+        const OptionModal = ({ isOpen, onClose, onConfirm, item }) => {
+            const [selectedOption, setSelectedOption] = useState(null);
+
+            useEffect(() => {
+                if (isOpen && item?.options?.length > 0) {
+                    // Default to first option
+                    setSelectedOption(item.options[0]);
+                }
+            }, [isOpen, item]);
+
+            if (!isOpen || !item) return null;
+
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white dark:bg-surface-dark rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden transform transition-all scale-100 p-6 border-2 border-primary">
+                        <h3 className="text-2xl font-display text-primary mb-2 text-center">Select Option</h3>
+                        <p className="text-center text-gray-600 dark:text-gray-300 mb-6 font-sans">
+                            for <span className="font-bold">{item.name || item.title}</span>
+                        </p>
+
+                        <div className="space-y-3 mb-8 max-h-60 overflow-y-auto">
+                            {item.options.map((opt, idx) => {
+                                const isString = typeof opt === 'string';
+                                const label = isString ? opt : opt.label;
+                                const isSelected = selectedOption === opt || (selectedOption && selectedOption.label === label);
+
+                                return (
+                                    <label key={idx} className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-primary bg-primary/10' : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'}`}>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-gray-800 dark:text-white">{label}</span>
+                                            {!isString && opt.price && <span className="text-xs text-primary font-bold">{opt.price}</span>}
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            name="option"
+                                            checked={isSelected}
+                                            onChange={() => setSelectedOption(opt)}
+                                            className="form-radio text-primary focus:ring-primary h-5 w-5"
+                                        />
+                                    </label>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button onClick={onClose} className="flex-1 py-3 px-4 rounded-xl font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => onConfirm(selectedOption)}
+                                className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-primary hover:bg-red-700 shadow-lg transform active:scale-95 transition-all"
+                            >
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Theme Toggle Component
+        const ThemeToggle = () => {
+            const [isDark, setIsDark] = useState(false);
+
+            useEffect(() => {
+                const html = document.documentElement;
+                if (html.classList.contains('dark')) {
+                    setIsDark(true);
+                }
+            }, []);
+
+            const toggleTheme = () => {
+                const html = document.documentElement;
+                if (html.classList.contains('dark')) {
+                    html.classList.remove('dark');
+                    // localStorage.setItem('theme', 'light'); // Optional persistence
+                    setIsDark(false);
+                } else {
+                    html.classList.add('dark');
+                    // localStorage.setItem('theme', 'dark');
+                    setIsDark(true);
+                }
+            };
+
+            return (
+                <button
+                    onClick={toggleTheme}
+                    className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none"
+                    aria-label="Toggle Dark Mode"
+                >
+                    <span className="material-icons text-gray-600 dark:text-gray-300">
+                        {isDark ? 'light_mode' : 'brightness_4'}
+                    </span>
+                </button>
+            );
+        };
+
+        // --- Screen 1: Home Page ---
+
+        const HomePage = () => {
+            const { cartCount, addToCart } = React.useContext(CartContext);
+            const [modalOpen, setModalOpen] = useState(false);
+            const [selectedItemForModal, setSelectedItemForModal] = useState(null);
+
+            const handleAddToCartClick = (item) => {
+                if (item.options && item.options.length > 0) {
+                    setSelectedItemForModal(item);
+                    setModalOpen(true);
+                } else {
+                    addToCart(item);
+                }
+            };
+
+            const handleModalConfirm = (option) => {
+                if (selectedItemForModal) {
+                    const isComplexOption = typeof option === 'object' && option !== null;
+                    const finalOptionName = isComplexOption ? option.label : option;
+                    const finalPrice = isComplexOption && option.price ? option.price : null;
+
+                    addToCart(selectedItemForModal, finalOptionName, finalPrice);
+                    setModalOpen(false);
+                    setSelectedItemForModal(null);
+                }
+            };
+
+            return (
+                <div className="flex flex-col min-h-screen">
+                    <OptionModal
+                        isOpen={modalOpen}
+                        item={selectedItemForModal}
+                        onClose={() => setModalOpen(false)}
+                        onConfirm={handleModalConfirm}
+                    />
+
+                    {/* Navigation */}
+                    <nav className="sticky top-0 z-50 bg-surface-light/95 dark:bg-surface-dark/95 backdrop-blur shadow-md border-b-4 border-primary">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-20">
+                                <div className="flex-shrink-0 flex items-center">
+                                    <span className="font-display text-3xl text-primary tracking-wider transform -rotate-2">Mr. Mike</span>
+                                </div>
+                                <div className="hidden md:flex space-x-8 items-center">
+                                    <a className="text-lg font-bold hover:text-primary transition-colors uppercase tracking-wide cursor-pointer" href="#burgers">Burgers</a>
+                                    <a className="text-lg font-bold hover:text-primary transition-colors uppercase tracking-wide cursor-pointer" href="#hotdogs">Hot Dogs</a>
+                                    <a className="text-lg font-bold hover:text-primary transition-colors uppercase tracking-wide cursor-pointer" href="#sides">Sides & Drinks</a>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <ThemeToggle />
+                                    <div className="relative group cursor-pointer">
+                                        <Link to="/cart" className="bg-primary text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition transform hover:scale-105 inline-block">
+                                            <span className="material-icons">shopping_cart</span>
+                                        </Link>
+                                        <span className={`absolute -top-1 -right-1 bg-yellow-400 text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white dark:border-background-dark transition-transform ${cartCount > 0 ? 'scale-100' : 'scale-0'}`}>
+                                            {cartCount}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* Hero Section */}
+                    <div className="relative bg-secondary dark:bg-gray-800 overflow-hidden">
+                        <div className="absolute inset-0 bg-checkerboard opacity-20 pointer-events-none"></div>
+                        <div className="max-w-7xl mx-auto">
+                            <div className="relative z-10 pb-8 sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32 pt-20 px-4 sm:px-6 lg:px-8">
+                                <main className="mt-10 mx-auto max-w-7xl sm:mt-12 md:mt-16 lg:mt-20 xl:mt-28">
+                                    <div className="sm:text-center lg:text-left">
+                                        <h1 className="text-5xl tracking-tight font-western text-primary sm:text-6xl md:text-7xl mb-4 drop-shadow-md dark:drop-shadow-neon-text transition-all duration-300">
+                                            Viaja al Pasado, <br />
+                                            <span className="text-gray-900 dark:text-white block xl:inline font-display transform -rotate-2">Muerde el Presente</span>
+                                        </h1>
+                                        <p className="mt-3 text-base text-gray-700 dark:text-gray-300 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0 font-light">
+                                            Experience the authentic taste of classic American diners. Premium smashed burgers, loaded hot dogs, and crispy fries made fresh daily.
+                                        </p>
+                                        <div className="mt-8 sm:mt-12 sm:flex sm:justify-center lg:justify-start">
+                                            <div className="rounded-md shadow">
+                                                <a href="#burgers" className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-bold rounded-full text-white bg-primary hover:bg-red-800 md:py-4 md:text-lg transition-transform transform hover:scale-105 shadow-xl dark:shadow-neon-red">
+                                                    Order Now
+                                                </a>
+                                            </div>
+                                            <div className="mt-3 sm:mt-0 sm:ml-3">
+                                                <a href="#locations" className="w-full flex items-center justify-center px-8 py-3 border-2 border-primary text-base font-bold rounded-full text-primary bg-transparent hover:bg-primary hover:text-white md:py-4 md:text-lg transition-colors">
+                                                    Locations
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </main>
+                            </div>
+                        </div>
+                        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 flex items-center justify-center lg:bg-transparent bg-secondary dark:bg-gray-800 p-8">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-primary opacity-10 rounded-full blur-3xl transform scale-110"></div>
+                                <img alt="Delicious stacked cheeseburger" className="relative w-full h-auto max-w-md object-contain transform rotate-3 hover:rotate-6 transition-transform duration-500 drop-shadow-2xl" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVb-qLQQCX_VyDeeKveMfCohLjBc-2NPeNsjP-FmmjOjVEi0lapWTc5T_1APusOncs18-T_-3DiqoNDnUoVM3vjV2Z1aQWs9hHNybmf-_85i5vBVKX1JKwAKv_qpxUDuSfUYiMc_2eM2FDD-iArq0p1hvRrwqqecEOm0CFiwVbkfhXp7Cj_lrqQ7mst16b9YGYVlwp5g5y7TRT67-VeSiS1jLJtoigStAeFPA8_N1rmILSibR9ZwpGN5zIjh48ZFFKkXo8SvgXuCNC" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Banner */}
+                    <div className="bg-primary text-white py-3">
+                        <div className="max-w-7xl mx-auto px-4 flex justify-center items-center overflow-hidden">
+                            <div className="animate-pulse font-display text-lg tracking-widest uppercase">
+                                Free Delivery on orders over $25 • Use Code: MIKE2024 • Fresh Ingredients Daily
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Burgers Section */}
+                    <section id="burgers" className="py-16 bg-background-light dark:bg-background-dark">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="text-center mb-16">
+                                <span className="font-script text-3xl text-primary">Classic Taste</span>
+                                <h2 className="text-4xl font-display text-gray-900 dark:text-white mt-2 uppercase tracking-wide">Smashed Burgers</h2>
+                                <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                                {/* Product Cards */}
+                                {[
+                                    {
+                                        title: "Cheese Burger Classic",
+                                        price: "$8.99",
+                                        desc: "Premium meat, brioche bun, cheddar cheese, pickles and house sauce.",
+                                        img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBIfmA11_6G_cAdTyMOdrZCfo-WlXXjNrtAelPkzR2FAYQ2_A3flM6j9JwibBruZWHrwWkC-HghU8bNBew6c-EehQvpKx-vEe0uxDpHluMALGgH88VCIzB7XruG0FsnWH_eyxxs8T8O0D0DpYbnTkcaef6SEipFQ-WLBBGEDauOhw4G044w28eVT-9kv78VJDgjo_KVUdqWFbNeqfWNSoWoD2Tqb1iTpn78rarP8yxrErDwJH_ZCofJJ6iTCTir1-BRzNlO88BcjTj8",
+                                        tag: "Best Seller",
+                                        tagColor: "bg-yellow-400 text-black",
+                                        mikeSauce: true,
+                                        options: [
+                                            { label: "Sencilla", price: 8.99 },
+                                            { label: "Doble", price: 10.99 },
+                                            { label: "Combo Sencilla (Papas + Bedida)", price: 12.99 },
+                                            { label: "Combo Doble (Papas + Bedida)", price: 14.99 }
+                                        ]
+                                    },
+                                    {
+                                        title: "Bacon Cheese",
+                                        price: "$10.50",
+                                        desc: "Premium meat, brioche bun, cheddar cheese, crispy bacon, onions and Mike Sauce.",
+                                        img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBzyujnOCf34R96er9Zq19rn_iAqwnqIa5wsMQRPnqWdme7UrC8sS7YUxDxzClIU4jEr-6MzljmjAEdE_TLp0fg_da4xpxNTfFojEBcnN7QjPRFrjCCiG10-yQdCKT9yVyFYnZugcguf4y1NQ3iMc_7lD-BKx7a_94ybn8YzJnsJJ4pOAcqfO6zJQbm88fCFODuiCdP_tn4S9whCYp4-ewOBJ82vta5ijIHAgixxwu6Cj1ebndiaEHOC9DjII47utmnF5s88RAQbO6z",
+                                        mikeSauce: true,
+                                        options: [
+                                            { label: "Sencilla", price: 10.50 },
+                                            { label: "Doble", price: 12.50 },
+                                            { label: "Combo Sencilla (Papas + Bedida)", price: 14.50 },
+                                            { label: "Combo Doble (Papas + Bedida)", price: 16.50 }
+                                        ]
+                                    },
+                                    {
+                                        title: "Mike's Truffle",
+                                        price: "$10.99",
+                                        desc: "Premium meat, brioche bun, cheddar cheese, crispy potato sticks, caramelized onions and Mayo-Truffle.",
+                                        img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDH9lT8NwnHI82Ngjs-qc1LdaWAg1rM1I6lYorWfAhU7H09Cnq7LfYbMd3YDdv48MdKrHz4hkhuDA2cjadTdBB0a3oLRIxU28XKi1CohpGZUJ64s9zvl5f8VK19kzWJA3a1OxmMWheYjgrV10UPZUPd9x7pQhUf1QtN6YQk8Q8ry9JIUtUaqMmVB4AtvestyIN8jlvES-IfJFUq92H9ti2majk2RaQ_-y8-OxV8hOUKBzLsmQmouw0LxlO-a1amBvmkaRQirXWJjgVh",
+                                        tag: "New",
+                                        tagColor: "bg-primary text-white",
+                                        options: [
+                                            { label: "Sencilla", price: 10.99 },
+                                            { label: "Doble", price: 12.99 },
+                                            { label: "Combo Sencilla (Papas + Bedida)", price: 14.99 },
+                                            { label: "Combo Doble (Papas + Bedida)", price: 16.99 }
+                                        ]
+                                    }
+                                ].map((item, idx) => (
+                                    <div key={idx} className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-xl overflow-hidden border-2 border-transparent hover:border-primary transition-all duration-300 flex flex-col group relative">
+
+                                        {/* Mike Sauce Badge - Stamp style */}
+                                        {item.mikeSauce && (
+                                            <div className="absolute top-4 left-4 z-20 transform -rotate-12 bg-white dark:bg-black border-2 border-primary text-primary text-xs font-bold px-2 py-1 rounded shadow-md opacity-90">
+                                                ★ WITH MIKE SAUCE ★
+                                            </div>
+                                        )}
+
+                                        {/* Image Region - Taller for "Food Porn" impact */}
+                                        <div className="relative h-72 overflow-hidden bg-gray-100 dark:bg-gray-800">
+                                            <img alt={item.title} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" src={item.img} />
+                                            {item.tag && (
+                                                <div className={`absolute top-4 right-4 z-20 ${item.tagColor} font-bold px-4 py-1 rounded-full text-sm shadow-lg transform rotate-2`}>
+                                                    {item.tag}
+                                                </div>
+                                            )}
+                                            {/* Gradient Overlay for text contrast if needed, currently subtle */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                        </div>
+
+                                        {/* Content Region */}
+                                        <div className="p-6 flex-1 flex flex-col relative">
+                                            {/* Decorative checkered bar */}
+                                            <div className="absolute top-0 left-0 w-full h-2 bg-checkerboard opacity-10"></div>
+
+                                            <div className="flex justify-between items-start mb-2 mt-2">
+                                                <h3 className="text-2xl font-western text-gray-900 dark:text-white leading-tight">{item.title}</h3>
+                                                <span className="text-2xl font-bold text-primary font-display">{item.price}</span>
+                                            </div>
+
+                                            <p className="text-gray-600 dark:text-gray-400 text-sm mb-6 flex-1 font-sans leading-relaxed">
+                                                {item.desc}
+                                            </p>
+
+                                            <div className="flex items-center justify-between mt-auto pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
+                                                <div className="flex space-x-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                    <span>Single</span>
+                                                    <span className="text-gray-300">|</span>
+                                                    <span>Double</span>
+                                                </div>
+                                                <button onClick={() => handleAddToCartClick(item)} className="bg-primary hover:bg-white hover:text-primary border-2 border-primary text-white px-6 py-2.5 rounded-full font-bold transition-all duration-300 flex items-center space-x-2 shadow-md group-hover:shadow-lg transform group-hover:-translate-y-1">
+                                                    <span>ORDER</span>
+                                                    <span className="material-icons text-sm">add_shopping_cart</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Hot Dogs Section */}
+                    <section id="hotdogs" className="py-16 bg-secondary dark:bg-gray-900 relative">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary opacity-5 rounded-bl-full pointer-events-none"></div>
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="text-center mb-16">
+                                <span className="font-script text-3xl text-primary">Street Favorite</span>
+                                <h2 className="text-4xl font-display text-gray-900 dark:text-white mt-2 uppercase tracking-wide">Hot Dogs</h2>
+                                <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                {[
+                                    {
+                                        title: "Tradicional",
+                                        price: "$2.75",
+                                        desc: "Crispy potato sticks, onions, special sauce on a steamed bun.",
+                                        img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDrefmkH1cfghJbUyCrh9rgz4yf2jJYL3Nx996Z69kO43ZmiFhBqGW-ndmfXiTfli38LIcNUhW_n3Hdu4NhBm-EtRA6iToBTZSUEYIgzA4Zah9OjwNLWvJV9IAL1ovy86CwAHtNJrXAqivkFGCE8O1jjUBNJJ6SutIyFX4VTnbX2ZMxDUq2hveeiDYC2k580VejOKfqh7wmavrHMn2wQkOw9uPSfmjACD8CtTYV6FGohpc1a3U15n8-o7K7dGyl5svru4tXWj7v9ZNe"
+                                    },
+                                    {
+                                        title: "Polaca",
+                                        price: "$3.75",
+                                        desc: "Polish sausage, crispy potato sticks, sauce and chopped onions.",
+                                        img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAhHYHm4nESBHurAUls3KoglAPpFNg37YwzRDwJM562mmHCEVlkfdHx1pJ-sjHjtpJlsCE3saJNId72SmJKFBu5wxrbhENv5E88JMX8zzjyPZIrI9wykjLM-bxT4Oqosmy6bRwe9g-So8XL3KkZfvSXs005_nUq0SXOY1KJzwBR6GeUs1uElrol8nWbd1_C6wemh99BUpdA0weHepYOv8VUEj5OeO0Kqvjl5alpZUelCEopkK9lIxOGAgCmXxs6tRSNhq0W7izQLSYY"
+                                    }
+                                ].map((item, idx) => (
+                                    <div key={idx} className="flex flex-col md:flex-row bg-surface-light dark:bg-surface-dark rounded-xl overflow-hidden shadow-lg group">
+                                        <div className="md:w-2/5 relative overflow-hidden">
+                                            <img alt={item.title} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" src={item.img} />
+                                        </div>
+                                        <div className="p-6 md:w-3/5 flex flex-col justify-center">
+                                            <h3 className="text-2xl font-display uppercase text-gray-900 dark:text-white">{item.title}</h3>
+                                            <p className="text-gray-600 dark:text-gray-400 mt-2 mb-4">{item.desc}</p>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-2xl font-bold text-primary">{item.price}</span>
+                                                <button onClick={() => handleAddToCartClick(item)} className="bg-transparent border-2 border-primary text-primary hover:bg-primary hover:text-white px-6 py-2 rounded-full font-bold transition-colors">
+                                                    Add to Cart
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Sides, Drinks & Desserts Section */}
+                    <section id="sides" className="py-16 bg-background-light dark:bg-background-dark">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="text-center mb-16">
+                                <span className="font-script text-3xl text-primary">Sweet & Refreshing</span>
+                                <h2 className="text-4xl font-display text-gray-900 dark:text-white mt-2 uppercase tracking-wide">Sides, Drinks & Shakes</h2>
+                                <div className="w-24 h-1 bg-primary mx-auto mt-4 rounded-full"></div>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                {/* Column 1: Fries & Extras (Sides) */}
+                                <div className="bg-surface-light dark:bg-surface-dark rounded-3xl p-8 shadow-lg border border-gray-100 dark:border-gray-700 flex flex-col h-full">
+                                    <div className="flex items-center space-x-3 mb-6">
+                                        <span className="material-icons text-primary text-4xl">local_dining</span>
+                                        <h2 className="text-3xl font-display uppercase text-gray-900 dark:text-white">Fries</h2>
+                                    </div>
+                                    <ul className="space-y-4 flex-1">
+                                        {[
+                                            { name: "Mike's Fries", desc: "With special Mike Sauce", price: "$2.50" },
+                                            { name: "Truffle Fries", desc: "With parmesan & truffle oil", price: "$4.00" },
+                                            { name: "Bacon Fries", desc: "Cheddar & Crispy Bacon", price: "$4.50" }
+                                        ].map((item, idx) => (
+                                            <li key={idx} className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-3 last:border-0">
+                                                <div>
+                                                    <h4 className="font-bold text-lg text-gray-900 dark:text-white uppercase font-display">{item.name}</h4>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">{item.desc}</p>
+                                                </div>
+                                                <div className="flex items-center space-x-3">
+                                                    <span className="font-bold text-primary">{item.price}</span>
+                                                    <button onClick={() => handleAddToCartClick(item)} className="w-8 h-8 rounded-full bg-secondary dark:bg-gray-800 shadow flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors">
+                                                        <span className="material-icons text-sm">add</span>
+                                                    </button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+
+                                {/* Column 2: Drinks (Expanded) */}
+                                <div className="bg-primary/5 dark:bg-gray-800 rounded-3xl p-8 border border-primary/20 flex flex-col h-full">
+                                    <div className="flex items-center space-x-3 mb-6">
+                                        <span className="material-icons text-primary text-4xl">local_drink</span>
+                                        <h2 className="text-3xl font-display uppercase text-gray-900 dark:text-white">Drinks</h2>
+                                    </div>
+                                    <div className="space-y-4 flex-1">
+                                        {[
+                                            { name: "Agua Mineral", price: "$2.00", icon: "water_drop" },
+                                            { name: "Malta", price: "$2.50", icon: "sports_bar" },
+                                            { name: "Té Lipton", sub: "Durazno / Limón", price: "$3.00", icon: "emoji_food_beverage", options: ["Durazno", "Limón"] },
+                                            { name: "Refrescos", sub: "Coca-Cola, Zero, Pepsi, 7Up, Manzanita, Colita", price: "$2.50", icon: "local_bar", options: ["Coca-Cola", "Coca-Cola Zero", "Pepsi", "7Up", "Manzanita", "Colita"] }
+                                        ].map((drink, idx) => (
+                                            <div key={idx} className="flex justify-between items-center bg-surface-light dark:bg-surface-dark p-3 rounded-xl shadow-sm">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-secondary dark:bg-gray-700 flex items-center justify-center">
+                                                        <span className="material-icons text-primary text-lg">{drink.icon}</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block font-bold text-gray-900 dark:text-white leading-tight">{drink.name}</span>
+                                                        {drink.sub && <span className="text-xs text-gray-500 dark:text-gray-400 block">{drink.sub}</span>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center space-x-3">
+                                                    <span className="font-bold text-primary">{drink.price}</span>
+                                                    <button onClick={() => handleAddToCartClick(drink)} className="w-8 h-8 rounded-full bg-secondary dark:bg-gray-800 shadow flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors">
+                                                        <span className="material-icons text-sm">add</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Column 3: Shakes & Ice Cream (New) */}
+                                <div className="bg-surface-light dark:bg-surface-dark rounded-3xl p-8 shadow-lg border border-gray-100 dark:border-gray-700 flex flex-col h-full relative overflow-hidden">
+                                    {/* Background decoration */}
+                                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-pink-100 dark:bg-pink-900/20 rounded-full opacity-50 blur-3xl pointer-events-none"></div>
+
+                                    <div className="flex items-center space-x-3 mb-6 relative z-10">
+                                        <span className="material-icons text-primary text-4xl">icecream</span>
+                                        <h2 className="text-3xl font-display uppercase text-gray-900 dark:text-white">Shakes & Cream</h2>
+                                    </div>
+
+                                    <div className="space-y-5 relative z-10 flex-1">
+                                        {/* Shakes */}
+                                        <div className="border-b border-dashed border-gray-200 dark:border-gray-700 pb-4">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <h4 className="font-bold text-xl text-primary font-western">SHAKES</h4>
+                                                <div className="flex items-center space-x-3">
+                                                    <span className="font-bold text-lg text-gray-900 dark:text-white">$6.99</span>
+                                                    <button onClick={() => handleAddToCartClick({ name: "Shake", price: "$6.99", options: ["Oreo", "Pirulin", "M&M"] })} className="w-8 h-8 rounded-full bg-secondary dark:bg-gray-800 shadow flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors">
+                                                        <span className="material-icons text-sm">add</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["Oreo", "Pirulin", "M&M"].map(flavor => (
+                                                    <span key={flavor} className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs font-bold text-gray-600 dark:text-gray-300">{flavor}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Mike Flurry */}
+                                        <div className="border-b border-dashed border-gray-200 dark:border-gray-700 pb-4">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <h4 className="font-bold text-xl text-primary font-western">MIKE FLURRY</h4>
+                                                <div className="flex items-center space-x-3">
+                                                    <span className="font-bold text-lg text-gray-900 dark:text-white">$4.99</span>
+                                                    <button onClick={() => handleAddToCartClick({ name: "Mike Flurry", price: "$4.99", options: ["Oreo", "Pirulin"] })} className="w-8 h-8 rounded-full bg-secondary dark:bg-gray-800 shadow flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors">
+                                                        <span className="material-icons text-sm">add</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {["Oreo", "Pirulin"].map(flavor => (
+                                                    <span key={flavor} className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-xs font-bold text-gray-600 dark:text-gray-300">{flavor}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Barquilla / Ice Cream */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <h4 className="font-bold text-xl text-primary font-western">BARQUILLA</h4>
+                                                <div className="flex items-center space-x-3">
+                                                    <span className="font-bold text-lg text-gray-900 dark:text-white">$0.99</span>
+                                                    <button onClick={() => handleAddToCartClick({
+                                                        name: "Barquilla",
+                                                        price: "$0.99",
+                                                        options: [
+                                                            { label: "Mantecado (Solo)", price: "$0.99" },
+                                                            { label: "Con Syrup (Dulce de Leche)", price: "$2.49" },
+                                                            { label: "Con Syrup (Choco)", price: "$2.49" },
+                                                            { label: "Combo Con Papas", price: "$3.99" }
+                                                        ]
+                                                    })} className="w-8 h-8 rounded-full bg-secondary dark:bg-gray-800 shadow flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-colors">
+                                                        <span className="material-icons text-sm">add</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <p className="text-sm text-gray-500 mb-2">Mantecado</p>
+                                            <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                                <li className="flex justify-between"><span>+ Syrup (Dulce de Leche/Choco)</span> <span className="font-bold text-primary">+$1.50</span></li>
+                                                <li className="flex justify-between"><span>+ Con Papas (Combo)</span> <span className="font-bold text-primary">+$3.00</span></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Footer */}
+                    <footer className="bg-primary text-white pt-16 pb-8">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 text-center md:text-left">
+                                <div>
+                                    <span className="font-display text-4xl tracking-wider transform -rotate-2 block mb-4">Mr. Mike</span>
+                                    <p className="text-white/80 max-w-xs mx-auto md:mx-0">Burger & Hot Dog. Viaja al pasado, muerde el presente.</p>
+                                    <div className="flex space-x-4 mt-6 justify-center md:justify-start">
+                                        <a className="hover:text-secondary transition-colors" href="#"><i className="material-icons">facebook</i></a>
+                                        <a className="hover:text-secondary transition-colors" href="#"><i className="material-icons">photo_camera</i></a>
+                                        <a className="hover:text-secondary transition-colors" href="#"><i className="material-icons">message</i></a>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="font-display text-2xl mb-4 text-secondary">Locations</h3>
+                                    <ul className="space-y-2 text-white/90">
+                                        <li className="flex items-center justify-center md:justify-start">
+                                            <span className="material-icons text-sm mr-2">place</span> Guatire, C.C La Parada
+                                        </li>
+                                        <li className="flex items-center justify-center md:justify-start">
+                                            <span className="material-icons text-sm mr-2">schedule</span> Daily 11am - 10pm
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h3 className="font-display text-2xl mb-4 text-secondary">Order Now</h3>
+                                    <p className="text-white/90 mb-4">Fast delivery to your doorstep.</p>
+                                    <a className="inline-flex items-center bg-white text-primary px-6 py-2 rounded-full font-bold hover:bg-secondary transition-colors" href="#">
+                                        <span className="material-icons mr-2 text-lg">call</span> WhatsApp Order
+                                    </a>
+                                </div>
+                            </div>
+                            <div className="border-t border-white/20 pt-8 text-center text-sm text-white/60">
+                                <p>© 2024 Mr. Mike Burger & Hot Dogs. All rights reserved.</p>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        // --- Screen 2: Registration Page ---
+
+        const RegistrationPage = () => {
+            const navigate = useNavigate();
+            const { cart, cartTotal, cartCount } = React.useContext(CartContext);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const nombre = formData.get('nombre');
+                const apellido = formData.get('apellido');
+                const email = formData.get('email');
+                const cedula = formData.get('cedula');
+                const direccion = formData.get('direccion');
+                const deliveryMode = formData.get('deliveryMode');
+
+                if (!cart.length) {
+                    alert("Tu carrito está vacío.");
+                    return;
+                }
+
+                let message = `*NUEVO PEDIDO MR. MIKE* 🍔🌭\n\n`;
+                message += `*Cliente:* ${nombre} ${apellido}\n`;
+                message += `*Cédula:* ${cedula}\n`;
+                message += `*Email:* ${email}\n`;
+                message += `*Método:* ${deliveryMode === 'delivery' ? 'Delivery 🛵' : 'Pickup 🏪'}\n`;
+                if (deliveryMode === 'delivery') {
+                    message += `*Dirección:* ${direccion}\n`;
+                }
+                message += `\n*PEDIDO:* \n`;
+
+                cart.forEach(item => {
+                    message += `- ${item.quantity}x ${item.name || item.title}`;
+                    if (item.option) message += ` (${item.option})`;
+                    message += ` - ${typeof item.price === 'number' ? `$${(item.price * item.quantity).toFixed(2)}` : item.price}\n`;
+                });
+
+                message += `\n*TOTAL: $${cartTotal.toFixed(2)}*`;
+
+                // Add note about payment proof
+                message += `\n\n_⚠️ Por favor adjunte su comprobante de pago en el chat._`;
+
+                const phoneNumber = "584120000000";
+                const url = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+
+                window.open(url, '_blank');
+            };
+
+            const [deliveryMode, setDeliveryMode] = React.useState('pickup');
+
+            return (
+                <div className="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body min-h-screen flex flex-col transition-colors duration-300">
+                    <header className="bg-white dark:bg-card-dark shadow-md sticky top-0 z-50">
+                        <div className="checkered-border-top"></div>
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+                            <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate('/')}>
+                                {/* Logo image removed as per request */}
+                                <h1 className="font-display text-3xl text-primary select-none">Mr. Mike</h1>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <ThemeToggle />
+                                <Link to="/cart" className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                    <span className="material-icons text-primary">shopping_cart</span>
+                                    {cartCount > 0 && (
+                                        <span className="absolute top-0 right-0 h-4 w-4 bg-primary text-white text-xs font-bold rounded-full flex items-center justify-center animate-bounce">{cartCount}</span>
+                                    )}
+                                </Link>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-grow flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-cover bg-center relative">
+                        <div className="absolute inset-0 opacity-5 dark:opacity-10 pointer-events-none" style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida-public/AB6AXuAdXzW1-7rRkgdTmgtl2BjLg4aP48CuAzE02VsNgYsvq7hZ_UhOdtPfbmEeP4g4GK0gFcsAzCnu2WJCOv0lr-LIpufPF59XxEhTdiGk-nUTPWH7w-SJ0K7w3EhhqAiklXEJx-Bf50yh-r9oO68N_ZVaa6G5nnBjtI0SuVEtaAN5oNm82zz2x1TWQJnfnwhLYyO5HXW85VyCiPOY0COlZmHXpGN0XTzdgeFJGryxqDDu7UFemuH4r8dJ9Z7uwU6_g1cbNP2hhMIDTxcv')" }}></div>
+                        <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                            <div className="hidden md:flex flex-col justify-center space-y-6 text-left">
+                                <div className="space-y-2">
+                                    <h2 className="text-4xl lg:text-5xl font-display text-primary leading-tight">
+                                        Viaja al pasado, <br />
+                                        <span className="text-gray-800 dark:text-white">muerde el presente.</span>
+                                    </h2>
+                                    <p className="text-lg text-gray-600 dark:text-gray-400">
+                                        ¡Estás a un paso de vivir la experiencia Mr. Mike! Completa tus datos para finalizar tu pedido y disfrutar de las mejores burgers y hot dogs.
+                                    </p>
+                                </div>
+                                <div className="bg-surface-light dark:bg-surface-dark p-6 rounded-2xl shadow-lg border-primary">
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2 flex items-center gap-2">
+                                        <span className="material-icons text-primary">delivery_dining</span>
+                                        Tu pedido
+                                    </h3>
+                                    <ul className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                                        {cart.length === 0 ? (
+                                            <li className="text-center italic">Tu carrito está vacío</li>
+                                        ) : (
+                                            cart.map((item, idx) => (
+                                                <li key={idx} className="flex justify-between">
+                                                    <span>{item.quantity}x {item.name || item.title} {item.option && <span className="text-xs text-gray-500">({item.option})</span>}</span>
+                                                    <span className="font-semibold text-primary">
+                                                        {typeof item.price === 'number' ? `$${(item.price * item.quantity).toFixed(2)}` : item.price}
+                                                    </span>
+                                                </li>
+                                            ))
+                                        )}
+                                        <li className="flex justify-between pt-2 mt-2">
+                                            <span className="font-bold text-gray-800 dark:text-white">Total</span>
+                                            <span className="font-bold text-xl text-primary">${cartTotal.toFixed(2)}</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div className="bg-surface-light dark:bg-surface-dark p-8 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700">
+                                <div className="text-center mb-6">
+                                    <h2 className="text-3xl font-display text-primary">Registro de Cliente</h2>
+                                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Ingresa tus datos para continuar</p>
+                                </div>
+                                <form onSubmit={handleSubmit} className="space-y-5">
+
+                                    {/* Delivery Toggle using standard Radio buttons for better compatibility */}
+                                    <div className="flex justify-center gap-4 mb-4">
+                                        <label className={`cursor-pointer px-4 py-2 rounded-full border-2 transition-all ${deliveryMode === 'pickup' ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-500 hover:border-primary'}`}>
+                                            <input type="radio" name="deliveryMode" value="pickup" checked={deliveryMode === 'pickup'} onChange={() => setDeliveryMode('pickup')} className="hidden" />
+                                            <span className="flex items-center gap-2"><span className="material-icons text-sm">store</span> Pickup</span>
+                                        </label>
+                                        <label className={`cursor-pointer px-4 py-2 rounded-full border-2 transition-all ${deliveryMode === 'delivery' ? 'bg-primary text-white border-primary' : 'border-gray-300 text-gray-500 hover:border-primary'}`}>
+                                            <input type="radio" name="deliveryMode" value="delivery" checked={deliveryMode === 'delivery'} onChange={() => setDeliveryMode('delivery')} className="hidden" />
+                                            <span className="flex items-center gap-2"><span className="material-icons text-sm">motorcycle</span> Delivery</span>
+                                        </label>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="nombre">Nombre</label>
+                                            <div className="relative rounded-md shadow-sm">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span className="material-icons text-gray-400 text-lg">person</span>
+                                                </div>
+                                                <input className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white py-2.5" id="nombre" name="nombre" placeholder="Ej. Miguel" required type="text" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="apellido">Apellido</label>
+                                            <div className="relative rounded-md shadow-sm">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span className="material-icons text-gray-400 text-lg">person_outline</span>
+                                                </div>
+                                                <input className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white py-2.5" id="apellido" name="apellido" placeholder="Ej. Pérez" required type="text" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="cedula">Cédula</label>
+                                        <div className="relative rounded-md shadow-sm">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span className="material-icons text-gray-400 text-lg">badge</span>
+                                            </div>
+                                            <input className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white py-2.5" id="cedula" name="cedula" placeholder="Ej. V-12345678" required type="text" />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="email">Correo Electrónico</label>
+                                        <div className="relative rounded-md shadow-sm">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span className="material-icons text-gray-400 text-lg">email</span>
+                                            </div>
+                                            <input className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white py-2.5" id="email" name="email" placeholder="Ej. usuario@correo.com" required type="email" />
+                                        </div>
+                                    </div>
+
+                                    {/* Conditional Address Field */}
+                                    {deliveryMode === 'delivery' && (
+                                        <div className="animate-fadeIn">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="direccion">Dirección de Entrega</label>
+                                            <div className="relative rounded-md shadow-sm">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <span className="material-icons text-gray-400 text-lg">location_on</span>
+                                                </div>
+                                                <textarea className="focus:ring-primary focus:border-primary block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white py-2.5" id="direccion" name="direccion" placeholder="Ej. Av. Principal, Edif. A, Apto 1" required rows="2"></textarea>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* File Upload for Payment Proof */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Comprobante de Pago</label>
+                                        <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg hover:border-primary transition-colors cursor-pointer relative bg-gray-50 dark:bg-gray-800">
+                                            <div className="space-y-1 text-center">
+                                                <span className="material-icons text-gray-400 text-3xl">cloud_upload</span>
+                                                <div className="flex text-sm text-gray-600 dark:text-gray-400">
+                                                    <label htmlFor="comprobante" className="relative cursor-pointer bg-transparent rounded-md font-medium text-primary hover:text-red-700 focus-within:outline-none">
+                                                        <span>Sube un archivo</span>
+                                                        <input id="comprobante" name="comprobante" type="file" accept=".jpg,.png,.pdf" className="sr-only" />
+                                                    </label>
+                                                    <p className="pl-1">o arrastra y suelta</p>
+                                                </div>
+                                                <p className="text-xs text-gray-500">PNG, JPG, PDF hasta 5MB</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="pt-4">
+                                        <button className="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all transform hover:scale-[1.02]" type="submit">
+                                            CONTINUAR AL PAGO
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </main>
+
+                    <footer className="bg-surface-light dark:bg-surface-dark border-t border-gray-200 dark:border-gray-700">
+                        <div className="checkered-border-bottom"></div>
+                        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+                            <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-500">
+                                © 2025 Mr. Mike Burger & Hot Dogs. Todos los derechos reservados.
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        // --- Screen 3: Cart Page (Modal Style) ---
+
+        const CartPage = () => {
+            const navigate = useNavigate();
+            const { cart, removeFromCart, updateQuantity, cartTotal, cartCount } = React.useContext(CartContext);
+
+            return (
+                <div className="bg-background-light dark:bg-background-dark font-body min-h-screen flex flex-col overflow-hidden transition-colors duration-300 relative">
+                    {/* Background Content (blurred and non-interactive simulation) */}
+                    <div aria-hidden="true" className="flex-grow flex flex-col h-screen select-none relative pointer-events-none">
+                        <nav className="sticky top-0 z-10 bg-primary shadow-lg opacity-80">
+                            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                    <span className="font-display text-3xl text-white tracking-wider">Mr. Mike</span>
+                                </div>
+                            </div>
+                        </nav>
+                        <main className="flex-grow flex items-center justify-center p-8 relative overflow-hidden opacity-50 blur-[2px]">
+                            <div className="max-w-4xl text-center z-0">
+                                <h1 className="font-display text-7xl text-primary dark:text-red-500 mb-6 rotate-[-2deg]">Best Burgers in Town!</h1>
+                            </div>
+                        </main>
+                    </div>
+
+                    {/* Cart Modal Overlay */}
+                    <div aria-modal="true" className="fixed inset-0 z-50 flex justify-end" role="dialog">
+                        {/* Backdrop - Click to close */}
+                        <div
+                            aria-label="Close cart"
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+                            onClick={() => navigate('/')}
+                        ></div>
+
+                        {/* Cart Sidebar */}
+                        <div className="relative w-full md:w-[600px] h-full bg-paper-light dark:bg-paper-dark shadow-2xl flex flex-col border-l-4 border-primary transform transition-transform duration-300 ease-in-out">
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-primary/10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md sticky top-0 z-10 shadow-sm">
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => navigate('/')}
+                                        className="flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-text-light dark:text-gray-300 transition-colors group"
+                                        title="Cerrar y seguir comprando"
+                                    >
+                                        <span className="material-symbols-outlined text-2xl group-hover:text-primary dark:group-hover:text-red-400">arrow_back</span>
+                                    </button>
+                                    <div>
+                                        <h2 className="font-display text-3xl text-primary dark:text-red-500 leading-none">Tu Carrito</h2>
+                                        <p className="text-xs text-text-light dark:text-gray-400 mt-1">Mr. Mike Online Store</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-primary/10 dark:bg-red-900/20 text-primary dark:text-red-400 text-xs font-bold px-3 py-1.5 rounded-full border border-primary/20">{cartCount} Items</span>
+                                    <ThemeToggle />
+                                </div>
+                            </div>
+
+                            {/* Cart Items */}
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-8 bg-paper-light dark:bg-paper-dark">
+                                {cart.length === 0 ? (
+                                    <div className="text-center py-20 opacity-50">
+                                        <span className="material-icons text-6xl mb-4">remove_shopping_cart</span>
+                                        <p className="text-xl">Tu carrito está vacío</p>
+                                        <button onClick={() => navigate('/')} className="mt-4 text-primary font-bold hover:underline">Ir al Menú</button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {cart.map((item) => (
+                                            <div key={item.id} className="flex flex-row items-start gap-4 p-4 bg-white dark:bg-zinc-800/50 rounded-xl border border-gray-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow group">
+                                                {/* Use a generic image if none provided in item */}
+                                                <img alt={item.name || item.title} className="w-20 h-20 rounded-lg object-cover shadow-sm border border-primary/20" src={item.img || "https://lh3.googleusercontent.com/aida-public/AB6AXuCQV5e85ZtF0Lqq_4n303C4Bv1lCwbwW_Bqj_3S8l6k4lK8qXW31L7tV4l4mK4k_5Y_5pWn8qL8tV9l9lX9j3k3q_5h6n8m7p8q9rs0t1u2v3w4x5y6z7A8B9C0"} />
+                                                <div className="flex-grow min-w-0">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <h3 className="font-display text-xl text-primary dark:text-red-400 truncate pr-2">{item.name || item.title}</h3>
+                                                        <span className="font-bold text-lg text-primary dark:text-red-400 whitespace-nowrap">{typeof item.price === 'number' ? `$${item.price.toFixed(2)}` : item.price}</span>
+                                                    </div>
+                                                    <p className="text-xs text-text-light dark:text-text-dark mb-3 truncate">
+                                                        {item.option ? <span className="font-bold text-primary">{item.option}</span> : item.desc}
+                                                    </p>
+                                                    <div className="flex justify-between items-center">
+                                                        <div className="inline-flex items-center bg-gray-100 dark:bg-zinc-700 rounded-lg p-0.5 shadow-inner">
+                                                            <button onClick={() => updateQuantity(item.id, -1)} className="p-1 hover:bg-white dark:hover:bg-zinc-600 rounded-md text-primary dark:text-red-400 transition-colors shadow-sm"><span className="material-symbols-outlined text-sm font-bold">remove</span></button>
+                                                            <span className="px-3 font-bold text-sm text-text-light dark:text-white">{item.quantity}</span>
+                                                            <button onClick={() => updateQuantity(item.id, 1)} className="p-1 hover:bg-white dark:hover:bg-zinc-600 rounded-md text-primary dark:text-red-400 transition-colors shadow-sm"><span className="material-symbols-outlined text-sm font-bold">add</span></button>
+                                                        </div>
+                                                        <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500 transition-colors"><span className="material-icons text-sm">delete</span></button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-6 border-t border-dashed border-gray-300 dark:border-zinc-700 bg-white/50 dark:bg-zinc-900/50 p-6">
+                                <div className="flex items-end justify-between mb-6 pb-4">
+                                    <span className="font-display text-3xl text-primary dark:text-red-500">Total</span>
+                                    <div className="text-right">
+                                        <span className="block font-display text-4xl text-primary dark:text-white">${cartTotal.toFixed(2)}</span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-500">Incluye IVA</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => navigate('/register')}
+                                    className="w-full bg-primary hover:bg-red-800 text-white font-bold py-4 px-6 rounded-lg shadow-lg transform transition hover:-translate-y-0.5 active:translate-y-0 text-lg flex justify-center items-center gap-2 group"
+                                    disabled={cart.length === 0}
+                                >
+                                    <span>Pagar Ahora</span>
+                                    <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Main App Component ---
+
+        const App = () => {
+            return (
+                <CartProvider>
+                    <MemoryRouter>
+                        <Routes>
+                            <Route path="/" element={<HomePage />} />
+                            <Route path="/cart" element={<CartPage />} />
+                            <Route path="/register" element={<RegistrationPage />} />
+                        </Routes>
+                        <a
+                            href="https://wa.me/584120000000"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="fixed bottom-6 right-6 z-50 transition-transform hover:scale-110 drop-shadow-2xl flex items-center justify-center"
+                            aria-label="Contact on WhatsApp"
+                        >
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" className="w-14 h-14 lg:w-16 lg:h-16" />
+                        </a>
+                    </MemoryRouter>
+                </CartProvider>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
