@@ -230,13 +230,15 @@
                                         desc: "Premium meat, brioche bun, cheddar cheese, pickles and house sauce.",
                                         img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBIfmA11_6G_cAdTyMOdrZCfo-WlXXjNrtAelPkzR2FAYQ2_A3flM6j9JwibBruZWHrwWkC-HghU8bNBew6c-EehQvpKx-vEe0uxDpHluMALGgH88VCIzB7XruG0FsnWH_eyxxs8T8O0D0DpYbnTkcaef6SEipFQ-WLBBGEDauOhw4G044w28eVT-9kv78VJDgjo_KVUdqWFbNeqfWNSoWoD2Tqb1iTpn78rarP8yxrErDwJH_ZCofJJ6iTCTir1-BRzNlO88BcjTj8",
                                         tag: "Best Seller",
-                                        tagColor: "bg-yellow-400 text-black"
+                                        tagColor: "bg-yellow-400 text-black",
+                                        mikeSauce: true
                                     },
                                     {
                                         title: "Bacon Cheese",
                                         price: "$10.50",
                                         desc: "Premium meat, brioche bun, cheddar cheese, crispy bacon, onions and Mike Sauce.",
                                         img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBzyujnOCf34R96er9Zq19rn_iAqwnqIa5wsMQRPnqWdme7UrC8sS7YUxDxzClIU4jEr-6MzljmjAEdE_TLp0fg_da4xpxNTfFojEBcnN7QjPRFrjCCiG10-yQdCKT9yVyFYnZugcguf4y1NQ3iMc_7lD-BKx7a_94ybn8YzJnsJJ4pOAcqfO6zJQbm88fCFODuiCdP_tn4S9whCYp4-ewOBJ82vta5ijIHAgixxwu6Cj1ebndiaEHOC9DjII47utmnF5s88RAQbO6z",
+                                        mikeSauce: true
                                     },
                                     {
                                         title: "Mike's Truffle",
@@ -247,29 +249,51 @@
                                         tagColor: "bg-primary text-white"
                                     }
                                 ].map((item, idx) => (
-                                    <div key={idx} className="bg-surface-light dark:bg-surface-dark rounded-xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-2xl transition-shadow duration-300 flex flex-col">
-                                        <div className="relative h-56 bg-secondary/30 dark:bg-gray-700/30 overflow-hidden group">
-                                            <img alt={item.title} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500" src={item.img} />
-                                            {item.tag && (
-                                                <div className={`absolute top-4 right-4 ${item.tagColor} font-bold px-3 py-1 rounded-full text-sm shadow-md`}>{item.tag}</div>
-                                            )}
-                                        </div>
-                                        <div className="p-6 flex-1 flex flex-col">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <h3 className="text-xl font-bold font-display uppercase text-gray-900 dark:text-white">{item.title}</h3>
-                                                <span className="text-xl font-bold text-primary">{item.price}</span>
+                                    <div key={idx} className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-xl overflow-hidden border-2 border-transparent hover:border-primary transition-all duration-300 flex flex-col group relative">
+                                        
+                                        {/* Mike Sauce Badge - Stamp style */}
+                                        {item.mikeSauce && (
+                                            <div className="absolute top-4 left-4 z-20 transform -rotate-12 bg-white dark:bg-black border-2 border-primary text-primary text-xs font-bold px-2 py-1 rounded shadow-md opacity-90">
+                                                ★ WITH MIKE SAUCE ★
                                             </div>
-                                            <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 flex-1">{item.desc}</p>
-                                            <div className="flex items-center justify-between mt-auto">
-                                                <div className="flex space-x-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        )}
+
+                                        {/* Image Region - Taller for "Food Porn" impact */}
+                                        <div className="relative h-72 overflow-hidden bg-gray-100 dark:bg-gray-800">
+                                            <img alt={item.title} className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700" src={item.img} />
+                                            {item.tag && (
+                                                <div className={`absolute top-4 right-4 z-20 ${item.tagColor} font-bold px-4 py-1 rounded-full text-sm shadow-lg transform rotate-2`}>
+                                                    {item.tag}
+                                                </div>
+                                            )}
+                                            {/* Gradient Overlay for text contrast if needed, currently subtle */}
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                        </div>
+
+                                        {/* Content Region */}
+                                        <div className="p-6 flex-1 flex flex-col relative">
+                                            {/* Decorative checkered bar */}
+                                            <div className="absolute top-0 left-0 w-full h-2 bg-checkerboard opacity-10"></div>
+                                            
+                                            <div className="flex justify-between items-start mb-2 mt-2">
+                                                <h3 className="text-2xl font-western text-gray-900 dark:text-white leading-tight">{item.title}</h3>
+                                                <span className="text-2xl font-bold text-primary font-display">{item.price}</span>
+                                            </div>
+                                            
+                                            <p className="text-gray-600 dark:text-gray-400 text-sm mb-6 flex-1 font-sans leading-relaxed">
+                                                {item.desc}
+                                            </p>
+                                            
+                                            <div className="flex items-center justify-between mt-auto pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
+                                                 <div className="flex space-x-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                                     <span>Single</span>
                                                     <span className="text-gray-300">|</span>
                                                     <span>Double</span>
                                                 </div>
-                                                <Link to="/cart" className="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-lg font-bold hover:bg-primary dark:hover:bg-primary dark:hover:text-white transition-colors flex items-center space-x-2">
-                                                    <span className="material-icons text-sm">add</span>
-                                                    <span>Add</span>
-                                                </Link>
+                                                <button onClick={() => window.location.href='#cart'} className="bg-primary hover:bg-white hover:text-primary border-2 border-primary text-white px-6 py-2.5 rounded-full font-bold transition-all duration-300 flex items-center space-x-2 shadow-md group-hover:shadow-lg transform group-hover:-translate-y-1">
+                                                    <span>ORDER</span>
+                                                    <span className="material-icons text-sm">arrow_forward</span>
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
